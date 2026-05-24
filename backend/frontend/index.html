@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🌿 Smart Greenhouse — Monitor & Kontrol</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="scanline"></div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <div>
+          <div class="logo-title">GREENHOUSE.OS</div>
+          <div class="logo-sub">Smart Monitoring System v1.0</div>
+        </div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="conn-status" id="connStatus">
+        <span class="dot dot--offline"></span>
+        <span class="conn-label">MENGHUBUNGKAN...</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="clock" id="clockDisplay">--:--:--</div>
+      <div class="device-tag">ESP8266 · WeMos D1</div>
+    </div>
+  </header>
+
+  <main class="main-grid">
+
+    <!-- LEFT COLUMN: Sensor Cards -->
+    <section class="sensors-col">
+      <div class="section-label">◈ DATA SENSOR REALTIME</div>
+
+      <div class="sensor-card card--temp" id="cardTemp">
+        <div class="card-icon">🌡</div>
+        <div class="card-body">
+          <div class="card-label">SUHU UDARA</div>
+          <div class="card-value"><span id="valSuhu">--</span><span class="unit">°C</span></div>
+          <div class="card-meta">DHT22 · Sensor 1</div>
+        </div>
+        <div class="card-bar"><div class="bar-fill" id="barSuhu"></div></div>
+        <div class="card-alert" id="alertSuhu"></div>
+      </div>
+
+      <div class="sensor-card card--humid" id="cardHumid">
+        <div class="card-icon">💧</div>
+        <div class="card-body">
+          <div class="card-label">KELEMBAPAN UDARA</div>
+          <div class="card-value"><span id="valKelembapan">--</span><span class="unit">%</span></div>
+          <div class="card-meta">DHT22 · Sensor 1</div>
+        </div>
+        <div class="card-bar"><div class="bar-fill" id="barKelembapan"></div></div>
+        <div class="card-alert" id="alertKelembapan"></div>
+      </div>
+
+      <div class="sensor-card card--soil" id="cardSoil">
+        <div class="card-icon">🪴</div>
+        <div class="card-body">
+          <div class="card-label">KELEMBAPAN TANAH</div>
+          <div class="card-value"><span id="valSoil">--</span><span class="unit">%</span></div>
+          <div class="card-meta">Capacitive · Sensor 2</div>
+        </div>
+        <div class="card-bar"><div class="bar-fill" id="barSoil"></div></div>
+        <div class="card-alert" id="alertSoil"></div>
+      </div>
+
+      <div class="sensor-card card--light" id="cardLight">
+        <div class="card-icon">☀</div>
+        <div class="card-body">
+          <div class="card-label">INTENSITAS CAHAYA</div>
+          <div class="card-value"><span id="valCahaya">--</span><span class="unit">lux</span></div>
+          <div class="card-meta">LDR · Sensor 3</div>
+        </div>
+        <div class="card-bar"><div class="bar-fill" id="barCahaya"></div></div>
+        <div class="card-alert" id="alertCahaya"></div>
+      </div>
+
+      <div class="last-update">
+        <span class="lu-dot"></span>
+        Terakhir diperbarui: <span id="lastUpdate">Menunggu data...</span>
+      </div>
+    </section>
+
+    <!-- CENTER COLUMN: Chart + Actuators -->
+    <section class="center-col">
+      <div class="section-label">◈ GRAFIK HISTORIS</div>
+      <div class="chart-container">
+        <div class="chart-tabs">
+          <button class="tab-btn active" data-sensor="suhu">Suhu</button>
+          <button class="tab-btn" data-sensor="kelembapan_udara">Kelembapan</button>
+          <button class="tab-btn" data-sensor="kelembapan_tanah">Tanah</button>
+          <button class="tab-btn" data-sensor="intensitas_cahaya">Cahaya</button>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="sensorChart"></canvas>
+        </div>
+      </div>
+
+      <div class="actuators-section">
+      <div class="section-label" style="margin-top:16px">◈ STATUS AKTUATOR OTOMATIS</div>
+      <div class="actuators-grid">
+        <div class="actuator-card" id="actKipas">
+          <div class="act-icon">🌀</div>
+          <div class="act-name">KIPAS</div>
+          <div class="act-status" id="statusKipas">OFF</div>
+          <div class="act-reason" id="reasonKipas">Suhu normal</div>
+          <div class="act-badge" id="badgeKipas">STANDBY</div>
+        </div>
+        <div class="actuator-card" id="actLampu">
+          <div class="act-icon">💡</div>
+          <div class="act-name">LAMPU</div>
+          <div class="act-status" id="statusLampu">OFF</div>
+          <div class="act-reason" id="reasonLampu">Cahaya cukup</div>
+          <div class="act-badge" id="badgeLampu">STANDBY</div>
+        </div>
+        <div class="actuator-card" id="actPompa">
+          <div class="act-icon">🚿</div>
+          <div class="act-name">POMPA AIR</div>
+          <div class="act-status" id="statusPompa">OFF</div>
+          <div class="act-reason" id="reasonPompa">Tanah lembap</div>
+          <div class="act-badge" id="badgePompa">STANDBY</div>
+        </div>
+      </div>
+
+      <div class="auto-note">
+        <span class="auto-icon">⚙</span>
+        Sistem berjalan <strong>otomatis</strong> berdasarkan threshold. Tidak ada kontrol manual.
+      </div>
+      </div><!-- end actuators-section -->
+    </section>
+
+    <!-- RIGHT COLUMN: Config -->
+    <section class="config-col">
+      <div class="section-label">◈ PARAMETER KONFIGURASI</div>
+
+      <div class="config-panel">
+        <div class="config-header">
+          <div class="config-title">THRESHOLD OTOMATIS</div>
+          <div class="config-sub">Ubah nilai batas untuk logika aktuator</div>
+        </div>
+
+        <form class="config-form" id="configForm">
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">🌡</span>
+              Suhu Maksimum
+              <span class="label-hint">Kipas ON jika melebihi</span>
+            </label>
+            <div class="input-row">
+              <input type="number" id="suhuMax" name="suhuMax" step="0.5" min="20" max="45" placeholder="30">
+              <span class="input-unit">°C</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">🪴</span>
+              Kelembapan Tanah Minimum
+              <span class="label-hint">Pompa ON jika di bawah</span>
+            </label>
+            <div class="input-row">
+              <input type="number" id="soilMin" name="soilMin" step="1" min="10" max="90" placeholder="40">
+              <span class="input-unit">%</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">☀</span>
+              Cahaya Minimum (LDR)
+              <span class="label-hint">Lampu ON jika di bawah</span>
+            </label>
+            <div class="input-row">
+              <input type="number" id="cahayaMin" name="cahayaMin" step="10" min="0" max="1024" placeholder="300">
+              <span class="input-unit">lux</span>
+            </div>
+          </div>
+
+          <div class="form-divider">Kelembapan Udara</div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">💧</span>
+              Kelembapan Min
+              <span class="label-hint">Alert jika terlalu kering</span>
+            </label>
+            <div class="input-row">
+              <input type="number" id="kelembapanMin" name="kelembapanMin" step="1" min="30" max="80" placeholder="60">
+              <span class="input-unit">%</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">💧</span>
+              Kelembapan Max
+              <span class="label-hint">Kipas ON jika melebihi</span>
+            </label>
+            <div class="input-row">
+              <input type="number" id="kelembapanMax" name="kelembapanMax" step="1" min="50" max="100" placeholder="85">
+              <span class="input-unit">%</span>
+            </div>
+          </div>
+
+          <button type="submit" class="save-btn" id="saveBtn">
+            <span class="save-icon">↑</span>
+            SIMPAN KONFIGURASI
+          </button>
+          <div class="save-feedback" id="saveFeedback"></div>
+        </form>
+
+        <div class="current-config">
+          <div class="cc-title">AKTIF SEKARANG</div>
+          <div class="cc-grid" id="currentConfigDisplay">
+            <div class="cc-item"><span class="cc-key">suhuMax</span><span class="cc-val" id="cc-suhuMax">--</span></div>
+            <div class="cc-item"><span class="cc-key">soilMin</span><span class="cc-val" id="cc-soilMin">--</span></div>
+            <div class="cc-item"><span class="cc-key">cahayaMin</span><span class="cc-val" id="cc-cahayaMin">--</span></div>
+            <div class="cc-item"><span class="cc-key">kelembapanMin</span><span class="cc-val" id="cc-kelembapanMin">--</span></div>
+            <div class="cc-item"><span class="cc-key">kelembapanMax</span><span class="cc-val" id="cc-kelembapanMax">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESP8266 Info -->
+      <div class="esp-info">
+        <div class="esp-title">📡 ESP8266 ENDPOINT</div>
+        <div class="esp-line">POST <code id="postUrl">http://[IP]:3000/data</code></div>
+        <div class="esp-line">GET &nbsp;<code id="getUrl">http://[IP]:3000/config</code></div>
+        <button class="copy-btn" onclick="copyEndpoints()">Salin Endpoint</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
