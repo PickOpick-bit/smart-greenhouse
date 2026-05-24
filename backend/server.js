@@ -38,27 +38,7 @@ app.use(express.static(path.join(__dirname, 'frontend')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
-  
-  if (require('fs').existsSync(frontendPath)) {
-    res.sendFile(frontendPath);
-  } else if (require('fs').existsSync(altPath)) {
-    res.sendFile(altPath);
-  } else {
-    res.json({ success: false, message: 'Frontend tidak ditemukan', 
-               dirname: __dirname });
-  }
-});
 
-app.get('/debug', (req, res) => {
-  const fs = require('fs');
-  const dirs = {
-    dirname: __dirname,
-    appContents: fs.readdirSync('/app'),
-    hasFrontend: fs.existsSync('/app/frontend'),
-    hasFrontendUp: fs.existsSync('/app/../frontend'),
-  };
-  res.json(dirs);
-});
 
 // Request logger
 app.use((req, res, next) => {
