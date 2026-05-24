@@ -34,6 +34,21 @@ app.use(express.urlencoded({ extended: true }));
 // Serve frontend
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
+// Fallback route untuk frontend
+app.get('/', (req, res) => {
+  const frontendPath = path.join(__dirname, '..', 'frontend', 'index.html');
+  const altPath = path.join(__dirname, 'frontend', 'index.html');
+  
+  if (require('fs').existsSync(frontendPath)) {
+    res.sendFile(frontendPath);
+  } else if (require('fs').existsSync(altPath)) {
+    res.sendFile(altPath);
+  } else {
+    res.json({ success: false, message: 'Frontend tidak ditemukan', 
+               dirname: __dirname });
+  }
+});
+
 // Request logger
 app.use((req, res, next) => {
   const now = new Date().toLocaleTimeString('id-ID');
