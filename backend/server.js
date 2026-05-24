@@ -49,6 +49,17 @@ app.get('/', (req, res) => {
   }
 });
 
+app.get('/debug', (req, res) => {
+  const fs = require('fs');
+  const dirs = {
+    dirname: __dirname,
+    appContents: fs.readdirSync('/app'),
+    hasFrontend: fs.existsSync('/app/frontend'),
+    hasFrontendUp: fs.existsSync('/app/../frontend'),
+  };
+  res.json(dirs);
+});
+
 // Request logger
 app.use((req, res, next) => {
   const now = new Date().toLocaleTimeString('id-ID');
