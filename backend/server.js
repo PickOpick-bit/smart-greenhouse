@@ -32,12 +32,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve frontend
-app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Fallback route untuk frontend
+// Fallback ke index.html
 app.get('/', (req, res) => {
-  const frontendPath = path.join(__dirname, '..', 'frontend', 'index.html');
-  const altPath = path.join(__dirname, 'frontend', 'index.html');
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+});
   
   if (require('fs').existsSync(frontendPath)) {
     res.sendFile(frontendPath);
