@@ -1,19 +1,19 @@
 /* ============================================================
    Smart Greenhouse — Frontend App Logic
-   Update: soil & cahaya tampil sebagai BASAH/KERING, TERANG/GELAP
+   Update: Auto/Manual toggle + kontrol manual aktuator
    ============================================================ */
 
-// ── Config ─────────────────────────────────────────────────
-const API_BASE = window.location.origin;
-const WS_URL   = `ws://${window.location.host}`;
+const API_BASE    = window.location.origin;
+const WS_URL      = `ws://${window.location.host}`;
 const MAX_HISTORY = 40;
 
-// ── State ───────────────────────────────────────────────────
 let chartInstance = null;
 let chartSensor   = 'suhu';
 let historyData   = { labels: [], datasets: {} };
 let ws            = null;
 let wsRetryCount  = 0;
+let _cfg          = {};
+let _control      = { mode: 'auto', kipas: false, lampu: false, pompa: false };
 
 // ── Init ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initConfigForm();
   loadConfig();
   loadHistory();
+  loadControl();
   connectWebSocket();
   updateEndpoints();
 });
@@ -55,6 +56,10 @@ function connectWebSocket() {
           updateSensorUI(msg.data);
           appendToHistory(msg.data);
         }
+        if (msg.type === 'control_update') {
+          _control = msg.data;
+          renderControlUI();
+        }
       } catch (e) { /* ignore */ }
     };
     ws.onclose = () => {
@@ -73,8 +78,8 @@ function connectWebSocket() {
 function setConnStatus(state, label) {
   const dot = document.querySelector('.dot');
   const lbl = document.querySelector('.conn-label');
-  dot.className = 'dot dot--' + state;
-  lbl.textContent = label;
+  if (dot) dot.className = 'dot dot--' + state;
+  if (lbl) lbl.textContent = label;
 }
 
 function startPolling() {
@@ -85,9 +90,17 @@ function startPolling() {
       if (json.success && json.data) updateSensorUI(json.data);
     } catch (e) { /* offline */ }
   }, 5000);
+
+  setInterval(async () => {
+    try {
+      const res  = await fetch(`${API_BASE}/actuator`);
+      const json = await res.json();
+      if (json.success) { _control = json.data; renderControlUI(); }
+    } catch (e) { /* offline */ }
+  }, 5000);
 }
 
-// ── Sensor UI Update ─────────────────────────────────────────
+// ── Sensor UI ────────────────────────────────────────────────
 function updateSensorUI(d) {
   const data = {
     suhu:             d.suhu              ?? null,
@@ -100,45 +113,36 @@ function updateSensorUI(d) {
     timestamp:        d.timestamp
   };
 
-  // Suhu & Kelembapan — angka
   setVal('valSuhu',       data.suhu,             1);
   setVal('valKelembapan', data.kelembapan_udara, 1);
-
-  // Soil & Cahaya — teks berwarna
   setTeks('valSoil',   data.kondisi_tanah,  { 'BASAH': '#4fc3f7', 'KERING': '#ffb347' });
   setTeks('valCahaya', data.kondisi_cahaya, { 'TERANG': '#ffeb3b', 'GELAP': '#546e7a' });
 
-  // Progress bars
   setBar('barSuhu',       data.suhu,             45);
   setBar('barKelembapan', data.kelembapan_udara, 100);
   setBar('barSoil',   data.kondisi_tanah  === 'BASAH'  ? 100 : 20, 100);
   setBar('barCahaya', data.kondisi_cahaya === 'TERANG' ? 100 : 10, 100);
 
-  // Alerts
   loadConfigAndAlerts(data);
 
-  // Aktuator
-  updateActuator('actKipas', 'statusKipas', 'badgeKipas', 'reasonKipas',
-    data.status_kipas, data.status_kipas ? 'Suhu/kelembapan tinggi' : 'Kondisi normal');
-  updateActuator('actLampu', 'statusLampu', 'badgeLampu', 'reasonLampu',
-    data.status_lampu, data.status_lampu ? 'Cahaya GELAP' : 'Cahaya TERANG');
-  updateActuator('actPompa', 'statusPompa', 'badgePompa', 'reasonPompa',
-    data.status_pompa, data.status_pompa ? 'Tanah KERING' : 'Tanah BASAH');
+  // Update status badge aktuator (dari data sensor, bukan control)
+  updateActuatorBadge('actKipas', 'statusKipas', 'badgeKipas', 'reasonKipas',
+    data.status_kipas, data.status_kipas ? 'Aktif' : 'Standby');
+  updateActuatorBadge('actLampu', 'statusLampu', 'badgeLampu', 'reasonLampu',
+    data.status_lampu, data.status_lampu ? 'Aktif' : 'Standby');
+  updateActuatorBadge('actPompa', 'statusPompa', 'badgePompa', 'reasonPompa',
+    data.status_pompa, data.status_pompa ? 'Aktif' : 'Standby');
 
-  // Timestamp
   const ts = data.timestamp ? new Date(data.timestamp) : new Date();
-  document.getElementById('lastUpdate').textContent =
-    ts.toLocaleTimeString('id-ID') + ' · ' + ts.toLocaleDateString('id-ID');
+  const el = document.getElementById('lastUpdate');
+  if (el) el.textContent = ts.toLocaleTimeString('id-ID') + ' · ' + ts.toLocaleDateString('id-ID');
 }
 
 function setVal(id, val, decimals = 1) {
   const el = document.getElementById(id);
   if (!el) return;
   const next = parseFloat(val);
-  if (isNaN(next)) {
-    if (el.textContent === '' || el.textContent === '0') el.textContent = '--';
-    return;
-  }
+  if (isNaN(next)) { if (!el.textContent || el.textContent === '0') el.textContent = '--'; return; }
   const prev = parseFloat(el.textContent);
   el.textContent = next.toFixed(decimals);
   if (!isNaN(prev) && prev !== next) {
@@ -164,7 +168,7 @@ function setBar(id, val, max) {
   el.style.width = Math.min(100, (pct / max) * 100).toFixed(1) + '%';
 }
 
-function updateActuator(cardId, statusId, badgeId, reasonId, isOn, reason) {
+function updateActuatorBadge(cardId, statusId, badgeId, reasonId, isOn, reason) {
   const card   = document.getElementById(cardId);
   const status = document.getElementById(statusId);
   const badge  = document.getElementById(badgeId);
@@ -172,14 +176,85 @@ function updateActuator(cardId, statusId, badgeId, reasonId, isOn, reason) {
   if (!card) return;
   const on = isOn === 1 || isOn === true;
   card.classList.toggle('active', on);
-  status.textContent = on ? 'ON' : 'OFF';
-  badge.textContent  = on ? 'AKTIF' : 'STANDBY';
-  if (res) res.textContent = reason;
+  if (status) status.textContent = on ? 'ON' : 'OFF';
+  if (badge)  badge.textContent  = on ? 'AKTIF' : 'STANDBY';
+  if (res)    res.textContent    = reason;
 }
 
-// ── Config & Alerts ──────────────────────────────────────────
-let _cfg = {};
+// ── CONTROL AUTO/MANUAL ──────────────────────────────────────
+async function loadControl() {
+  try {
+    const res  = await fetch(`${API_BASE}/actuator`);
+    const json = await res.json();
+    if (json.success) { _control = json.data; renderControlUI(); }
+  } catch (e) { /* ignore */ }
+}
 
+function renderControlUI() {
+  const isManual = _control.mode === 'manual';
+
+  // Toggle button
+  const toggleBtn = document.getElementById('modeToggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = isManual ? '⚙ MODE: MANUAL' : '🤖 MODE: OTOMATIS';
+    toggleBtn.className   = 'mode-toggle ' + (isManual ? 'manual' : 'auto');
+  }
+
+  // Tampilkan/sembunyikan panel manual
+  const manualPanel = document.getElementById('manualPanel');
+  if (manualPanel) manualPanel.style.display = isManual ? 'grid' : 'none';
+
+  // Update tombol ON/OFF
+  ['kipas', 'lampu', 'pompa'].forEach(name => {
+    const btn = document.getElementById(`btn${capitalize(name)}`);
+    if (!btn) return;
+    const isOn = _control[name];
+    btn.textContent = isOn ? `🔴 ${name.toUpperCase()}: ON` : `⚪ ${name.toUpperCase()}: OFF`;
+    btn.className   = 'actuator-btn ' + (isOn ? 'on' : 'off');
+  });
+}
+
+async function toggleMode() {
+  const newMode = _control.mode === 'auto' ? 'manual' : 'auto';
+  try {
+    const res  = await fetch(`${API_BASE}/actuator`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: newMode })
+    });
+    const json = await res.json();
+    if (json.success) {
+      _control = json.data;
+      renderControlUI();
+      showToast(`Mode diubah ke: ${newMode.toUpperCase()}`);
+    }
+  } catch (e) { showToast('Gagal ubah mode', 'err'); }
+}
+
+async function toggleActuator(name) {
+  if (_control.mode !== 'manual') {
+    showToast('⚠ Pindah ke MODE MANUAL dulu!', 'warn');
+    return;
+  }
+  const newVal = !_control[name];
+  try {
+    const res  = await fetch(`${API_BASE}/actuator`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [name]: newVal })
+    });
+    const json = await res.json();
+    if (json.success) {
+      _control = json.data;
+      renderControlUI();
+      showToast(`${name.toUpperCase()} → ${newVal ? 'ON' : 'OFF'}`);
+    }
+  } catch (e) { showToast('Gagal kontrol aktuator', 'err'); }
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// ── Config & Alerts ──────────────────────────────────────────
 async function loadConfig() {
   try {
     const res  = await fetch(`${API_BASE}/config`);
@@ -188,9 +263,7 @@ async function loadConfig() {
     _cfg = json.data;
     populateConfigForm(_cfg);
     updateCurrentConfigDisplay(_cfg);
-  } catch (e) {
-    showToast('⚠ Gagal load konfigurasi', 'err');
-  }
+  } catch (e) { showToast('⚠ Gagal load konfigurasi', 'err'); }
 }
 
 function populateConfigForm(cfg) {
@@ -209,12 +282,10 @@ function updateCurrentConfigDisplay(cfg) {
 
 function loadConfigAndAlerts(d) {
   if (!_cfg || Object.keys(_cfg).length === 0) return;
-  checkAlert('alertSuhu',       d.suhu > _cfg.suhuMax,
-    `⚠ SUHU MELEBIHI ${_cfg.suhuMax}°C`);
-  checkAlert('alertKelembapan', d.kelembapan_udara > _cfg.kelembapanMax,
-    `⚠ KELEMBAPAN TINGGI > ${_cfg.kelembapanMax}%`);
-  checkAlert('alertSoil',       d.kondisi_tanah === 'KERING',  `⚠ TANAH KERING`);
-  checkAlert('alertCahaya',     d.kondisi_cahaya === 'GELAP',  `⚠ CAHAYA KURANG`);
+  checkAlert('alertSuhu',       d.suhu > _cfg.suhuMax,           `⚠ SUHU MELEBIHI ${_cfg.suhuMax}°C`);
+  checkAlert('alertKelembapan', d.kelembapan_udara > _cfg.kelembapanMax, `⚠ KELEMBAPAN TINGGI > ${_cfg.kelembapanMax}%`);
+  checkAlert('alertSoil',       d.kondisi_tanah === 'KERING',    `⚠ TANAH KERING`);
+  checkAlert('alertCahaya',     d.kondisi_cahaya === 'GELAP',    `⚠ CAHAYA KURANG`);
 }
 
 function checkAlert(elId, condition, msg) {
@@ -227,16 +298,18 @@ function checkAlert(elId, condition, msg) {
 
 // ── Config Form ──────────────────────────────────────────────
 function initConfigForm() {
-  document.getElementById('configForm').addEventListener('submit', async (e) => {
+  const form = document.getElementById('configForm');
+  if (!form) return;
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('saveBtn');
     const fb  = document.getElementById('saveFeedback');
-    btn.classList.add('loading');
-    fb.textContent = '';
+    if (btn) btn.classList.add('loading');
+    if (fb)  fb.textContent = '';
 
     const payload = {};
     ['suhuMax','soilMin','cahayaMin','kelembapanMin','kelembapanMax'].forEach(k => {
-      const val = parseFloat(document.getElementById(k).value);
+      const val = parseFloat(document.getElementById(k)?.value);
       if (!isNaN(val)) payload[k] = val;
     });
 
@@ -250,32 +323,31 @@ function initConfigForm() {
       if (json.success) {
         _cfg = json.data;
         updateCurrentConfigDisplay(_cfg);
-        fb.textContent = '✓ KONFIGURASI DISIMPAN';
-        fb.className   = 'save-feedback ok';
+        if (fb) { fb.textContent = '✓ KONFIGURASI DISIMPAN'; fb.className = 'save-feedback ok'; }
         showToast('✅ Konfigurasi berhasil diperbarui');
       } else {
-        fb.textContent = '✗ ' + (json.message || 'Gagal menyimpan');
-        fb.className   = 'save-feedback err';
+        if (fb) { fb.textContent = '✗ ' + (json.message || 'Gagal'); fb.className = 'save-feedback err'; }
       }
     } catch (err) {
-      fb.textContent = '✗ SERVER TIDAK TERJANGKAU';
-      fb.className   = 'save-feedback err';
+      if (fb) { fb.textContent = '✗ SERVER TIDAK TERJANGKAU'; fb.className = 'save-feedback err'; }
       showToast('❌ Gagal terhubung ke server', 'err');
     } finally {
-      btn.classList.remove('loading');
-      setTimeout(() => (fb.textContent = ''), 4000);
+      if (btn) btn.classList.remove('loading');
+      setTimeout(() => { if (fb) fb.textContent = ''; }, 4000);
     }
   });
 }
 
-// ── Chart (hanya suhu & kelembapan udara — angka) ────────────
+// ── Chart ────────────────────────────────────────────────────
 const sensorColors = {
   suhu:             { border: '#ff4f5e', bg: 'rgba(255,79,94,0.08)' },
   kelembapan_udara: { border: '#4fc3f7', bg: 'rgba(79,195,247,0.08)' }
 };
 
 function initChart() {
-  const ctx = document.getElementById('sensorChart').getContext('2d');
+  const canvas = document.getElementById('sensorChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
   Chart.defaults.color       = '#5a7a82';
   Chart.defaults.borderColor = '#1e2a2f';
   Chart.defaults.font.family = "'Space Mono', monospace";
@@ -288,25 +360,15 @@ function initChart() {
       data: [],
       borderColor: sensorColors.suhu.border,
       backgroundColor: sensorColors.suhu.bg,
-      borderWidth: 1.5,
-      pointRadius: 2,
-      tension: 0.4,
-      fill: true
+      borderWidth: 1.5, pointRadius: 2, tension: 0.4, fill: true
     }]},
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          backgroundColor: '#111518',
-          borderColor: '#1e2a2f',
-          borderWidth: 1,
-          titleColor: '#c8d8dc',
-          bodyColor: '#c8d8dc',
-          padding: 10
-        }
+        tooltip: { backgroundColor: '#111518', borderColor: '#1e2a2f', borderWidth: 1,
+                   titleColor: '#c8d8dc', bodyColor: '#c8d8dc', padding: 10 }
       },
       scales: {
         x: { grid: { color: '#1e2a2f' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
@@ -331,13 +393,10 @@ function appendToHistory(d) {
   const ts = d.timestamp
     ? new Date(d.timestamp).toLocaleTimeString('id-ID', { hour12: false })
     : new Date().toLocaleTimeString('id-ID', { hour12: false });
-
   const fields = ['suhu', 'kelembapan_udara'];
   if (!historyData.labels.length) fields.forEach(f => (historyData.datasets[f] = []));
-
   historyData.labels.push(ts);
   fields.forEach(f => historyData.datasets[f].push(d[f] ?? null));
-
   if (historyData.labels.length > MAX_HISTORY) {
     historyData.labels.shift();
     fields.forEach(f => historyData.datasets[f].shift());
@@ -362,12 +421,10 @@ async function loadHistory() {
     const res  = await fetch(`${API_BASE}/data?limit=40`);
     const json = await res.json();
     if (!json.success || !json.history?.length) return;
-
     historyData = { labels: [], datasets: { suhu: [], kelembapan_udara: [] } };
     for (const row of json.history) {
       const ts = row.timestamp
-        ? new Date(row.timestamp).toLocaleTimeString('id-ID', { hour12: false })
-        : '??:??:??';
+        ? new Date(row.timestamp).toLocaleTimeString('id-ID', { hour12: false }) : '??:??:??';
       historyData.labels.push(ts);
       historyData.datasets.suhu.push(row.suhu ?? null);
       historyData.datasets.kelembapan_udara.push(row.kelembapan_udara ?? null);
@@ -380,6 +437,7 @@ async function loadHistory() {
 // ── Toast ─────────────────────────────────────────────────────
 function showToast(msg, type = 'ok') {
   const container = document.getElementById('toastContainer');
+  if (!container) return;
   const t = document.createElement('div');
   t.className = 'toast ' + (type === 'err' ? 'err' : type === 'warn' ? 'warn' : '');
   t.textContent = msg;
@@ -390,8 +448,10 @@ function showToast(msg, type = 'ok') {
 // ── ESP Endpoints ─────────────────────────────────────────────
 function updateEndpoints() {
   const host = window.location.host;
-  document.getElementById('postUrl').textContent = `http://${host}/data`;
-  document.getElementById('getUrl').textContent  = `http://${host}/config`;
+  const postEl = document.getElementById('postUrl');
+  const getEl  = document.getElementById('getUrl');
+  if (postEl) postEl.textContent = `http://${host}/data`;
+  if (getEl)  getEl.textContent  = `http://${host}/config`;
 }
 
 function copyEndpoints() {

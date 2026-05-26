@@ -106,32 +106,57 @@
       </div>
 
       <div class="actuators-section">
-      <div class="section-label" style="margin-top:16px">◈ STATUS AKTUATOR OTOMATIS</div>
-      <div class="actuators-grid">
-        <div class="actuator-card" id="actKipas">
-          <div class="act-icon">🌀</div>
-          <div class="act-name">KIPAS</div>
-          <div class="act-status" id="statusKipas">OFF</div>
-          <div class="act-reason" id="reasonKipas">Suhu normal</div>
-          <div class="act-badge" id="badgeKipas">STANDBY</div>
-        </div>
-        <div class="actuator-card" id="actLampu">
-          <div class="act-icon">💡</div>
-          <div class="act-name">LAMPU</div>
-          <div class="act-status" id="statusLampu">OFF</div>
-          <div class="act-reason" id="reasonLampu">Cahaya cukup</div>
-          <div class="act-badge" id="badgeLampu">STANDBY</div>
-        </div>
-        <div class="actuator-card" id="actPompa">
-          <div class="act-icon">🚿</div>
-          <div class="act-name">POMPA AIR</div>
-          <div class="act-status" id="statusPompa">OFF</div>
-          <div class="act-reason" id="reasonPompa">Tanah lembap</div>
-          <div class="act-badge" id="badgePompa">STANDBY</div>
-        </div>
-      </div>
+      <div class="section-label" style="margin-top:16px">◈ KONTROL AKTUATOR</div>
 
-      <div class="auto-note">
+<!-- Toggle Auto/Manual -->
+<div style="margin: 12px 0; text-align: center;">
+  <button id="modeToggle" class="mode-toggle auto" onclick="toggleMode()">
+    🤖 MODE: OTOMATIS
+  </button>
+</div>
+
+<!-- Panel Manual (tersembunyi saat mode auto) -->
+<div id="manualPanel" style="display:none; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+  <button id="btnKipas" class="actuator-btn off" onclick="toggleActuator('kipas')">
+    ⚪ KIPAS: OFF
+  </button>
+  <button id="btnLampu" class="actuator-btn off" onclick="toggleActuator('lampu')">
+    ⚪ LAMPU: OFF
+  </button>
+  <button id="btnPompa" class="actuator-btn off" onclick="toggleActuator('pompa')">
+    ⚪ POMPA: OFF
+  </button>
+</div>
+
+<!-- Status Aktuator (tetap tampil) -->
+<div class="actuators-grid">
+  <div class="actuator-card" id="actKipas">
+    <div class="act-icon">🌀</div>
+    <div class="act-name">KIPAS</div>
+    <div class="act-status" id="statusKipas">OFF</div>
+    <div class="act-reason" id="reasonKipas">Standby</div>
+    <div class="act-badge" id="badgeKipas">STANDBY</div>
+  </div>
+  <div class="actuator-card" id="actLampu">
+    <div class="act-icon">💡</div>
+    <div class="act-name">LAMPU</div>
+    <div class="act-status" id="statusLampu">OFF</div>
+    <div class="act-reason" id="reasonLampu">Standby</div>
+    <div class="act-badge" id="badgeLampu">STANDBY</div>
+  </div>
+  <div class="actuator-card" id="actPompa">
+    <div class="act-icon">🚿</div>
+    <div class="act-name">POMPA AIR</div>
+    <div class="act-status" id="statusPompa">OFF</div>
+    <div class="act-reason" id="reasonPompa">Standby</div>
+    <div class="act-badge" id="badgePompa">STANDBY</div>
+  </div>
+</div>
+
+<div class="auto-note" id="autoNote">
+  <span class="auto-icon">⚙</span>
+  Sistem berjalan <strong>otomatis</strong> berdasarkan threshold. Tidak ada kontrol manual.
+</div>
         <span class="auto-icon">⚙</span>
         Sistem berjalan <strong>otomatis</strong> berdasarkan threshold. Tidak ada kontrol manual.
       </div>

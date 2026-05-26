@@ -1,4 +1,4 @@
-// db/database.js — MongoDB (menggantikan NeDB)
+// db/database.js — MongoDB + Actuator Control
 const { MongoClient } = require('mongodb');
 
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -7,6 +7,15 @@ const DB_NAME     = 'greenhouse';
 const DEFAULT_CONFIG = {
   suhuMax: 30, soilMin: 40, cahayaMin: 300,
   kelembapanMin: 60, kelembapanMax: 85
+};
+
+const DEFAULT_CONTROL = {
+  _type: 'control',
+  mode: 'auto',  // 'auto' atau 'manual'
+  kipas: false,
+  lampu: false,
+  pompa: false,
+  updatedAt: new Date()
 };
 
 let client = null;
@@ -43,7 +52,6 @@ async function updateConfig(updates) {
   const allowed  = ['suhuMax', 'soilMin', 'cahayaMin', 'kelembapanMin', 'kelembapanMax'];
   const filtered = { updatedAt: new Date() };
   for (const k of allowed) if (updates[k] !== undefined) filtered[k] = updates[k];
-
   await database.collection('config').updateOne(
     { _type: 'config' },
     { $set: filtered },
@@ -52,20 +60,40 @@ async function updateConfig(updates) {
   return getConfig();
 }
 
+// ── ACTUATOR CONTROL ─────────────────────────────────────────
+async function getControl() {
+  const database = await getDB();
+  let doc = await database.collection('control').findOne({ _type: 'control' });
+  if (!doc) {
+    await database.collection('control').insertOne({ ...DEFAULT_CONTROL });
+    doc = await database.collection('control').findOne({ _type: 'control' });
+  }
+  return doc;
+}
+
+async function updateControl(updates) {
+  const database = await getDB();
+  const allowed  = ['mode', 'kipas', 'lampu', 'pompa'];
+  const filtered = { updatedAt: new Date() };
+  for (const k of allowed) if (updates[k] !== undefined) filtered[k] = updates[k];
+  await database.collection('control').updateOne(
+    { _type: 'control' },
+    { $set: filtered },
+    { upsert: true }
+  );
+  return getControl();
+}
+
 // ── SENSOR DATA ──────────────────────────────────────────────
 async function insertSensorData(data) {
   const database = await getDB();
   const doc      = { ...data, timestamp: new Date() };
   const result   = await database.collection('sensor_data').insertOne(doc);
 
-  // Batasi maksimal 1000 data — hapus yang paling lama
   const count = await database.collection('sensor_data').countDocuments();
   if (count > 1000) {
     const oldest = await database.collection('sensor_data')
-      .find({})
-      .sort({ timestamp: 1 })
-      .limit(count - 1000)
-      .toArray();
+      .find({}).sort({ timestamp: 1 }).limit(count - 1000).toArray();
     const ids = oldest.map(d => d._id);
     await database.collection('sensor_data').deleteMany({ _id: { $in: ids } });
   }
@@ -83,11 +111,12 @@ async function getLatestSensorData() {
 async function getSensorHistory(limit = 50) {
   const database = await getDB();
   const docs = await database.collection('sensor_data')
-    .find({})
-    .sort({ timestamp: -1 })
-    .limit(Math.min(limit, 500))
-    .toArray();
+    .find({}).sort({ timestamp: -1 }).limit(Math.min(limit, 500)).toArray();
   return docs.reverse();
 }
 
-module.exports = { getConfig, updateConfig, insertSensorData, getLatestSensorData, getSensorHistory };
+module.exports = {
+  getConfig, updateConfig,
+  getControl, updateControl,
+  insertSensorData, getLatestSensorData, getSensorHistory
+};

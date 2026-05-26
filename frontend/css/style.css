@@ -525,3 +525,69 @@ body {
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* Mode Toggle Button */
+.mode-toggle {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.mode-toggle.auto {
+  background: #1a3a2a;
+  color: #4fc3f7;
+  border: 1px solid #4fc3f7;
+}
+
+.mode-toggle.manual {
+  background: #3a1a1a;
+  color: #ff6b6b;
+  border: 1px solid #ff6b6b;
+}
+
+.mode-toggle:hover {
+  opacity: 0.85;
+  transform: scale(1.02);
+}
+
+/* Actuator Control Buttons */
+.actuator-btn {
+  padding: 12px 8px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.actuator-btn.off {
+  background: #1a1f24;
+  color: #5a7a82;
+  border: 1px solid #2a3a40;
+}
+
+.actuator-btn.on {
+  background: #1a3a2a;
+  color: #4fc3f7;
+  border: 1px solid #4fc3f7;
+  box-shadow: 0 0 8px rgba(79, 195, 247, 0.3);
+}
+
+.actuator-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.03);
+}
+
+.actuator-btn:active {
+  transform: scale(0.97);
+}
