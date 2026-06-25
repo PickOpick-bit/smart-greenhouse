@@ -51,6 +51,39 @@ app.use((req, res, next) => {
 app.use('/config', configRoutes);
 app.use('/data', dataRoutes);
 
+// Manual control endpoint
+let manualOverride = { mode: 'auto', kipas: 0, lampu: 0, pompa: 0 };
+
+app.post('/control', (req, res) => {
+  const { device, state, mode } = req.body;
+  const validDevices = ['kipas', 'lampu', 'pompa'];
+  if (!validDevices.includes(device)) {
+    return res.status(400).json({ success: false, message: 'Device tidak valid' });
+  }
+  manualOverride[device] = state ? 1 : 0;
+  manualOverride.mode = mode || 'manual';
+
+  // Broadcast to all WebSocket clients so ESP8266 / other tabs get update
+  const payload = JSON.stringify({
+    type: 'control',
+    device,
+    state: state ? 1 : 0,
+    mode: manualOverride.mode,
+    override: manualOverride
+  });
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) client.send(payload);
+  });
+
+  const now = new Date().toLocaleTimeString('id-ID');
+  console.log(`[${now}] KONTROL MANUAL → ${device}: ${state ? 'ON' : 'OFF'}`);
+  res.json({ success: true, device, state: state ? 1 : 0, mode: manualOverride.mode });
+});
+
+app.get('/control', (req, res) => {
+  res.json({ success: true, data: manualOverride });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({

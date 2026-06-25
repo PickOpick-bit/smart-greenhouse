@@ -258,7 +258,7 @@ body {
 
 /* ── ACTUATORS ───────────────────────────── */
 .actuators-section {
-  flex-shrink: 0;  /* jangan shrink, ukuran tetap */
+  flex-shrink: 0;
 }
 .actuators-grid {
   display: grid;
@@ -266,6 +266,49 @@ body {
   gap: 10px;
   margin-bottom: 12px;
 }
+
+/* Mode Toggle Button */
+.mode-toggle-wrap {
+  margin: 12px 0;
+  display: flex;
+  justify-content: center;
+}
+.mode-toggle {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono);
+  font-size: 0.65rem; letter-spacing: 2px;
+  padding: 10px 22px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.mode-toggle::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.mode-toggle:hover::after { opacity: 0.07; }
+.mode-toggle:active { transform: scale(0.97); }
+
+.mode--auto {
+  background: rgba(45,255,122,0.08);
+  border-color: var(--green);
+  color: var(--green);
+}
+.mode--manual {
+  background: rgba(255,179,71,0.1);
+  border-color: var(--amber);
+  color: var(--amber);
+  box-shadow: 0 0 16px rgba(255,179,71,0.2);
+}
+.mode-arrow { opacity: 0.5; font-size: 0.8rem; }
+
+/* Actuator Cards */
 .actuator-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
@@ -274,15 +317,58 @@ body {
   text-align: center;
   position: relative;
   overflow: hidden;
-  transition: all 0.4s;
+  transition: all 0.3s;
 }
 .actuator-card.active {
   border-color: var(--green);
   background: rgba(45,255,122,0.05);
   box-shadow: 0 0 24px rgba(45,255,122,0.12);
 }
-.act-icon { font-size: 1.4rem; margin-bottom: 8px; }
+
+/* Manual mode: cards are clickable */
+.actuator-card.manual-mode {
+  cursor: pointer;
+  border-color: var(--border2);
+}
+.actuator-card.manual-mode:hover {
+  border-color: var(--amber);
+  background: rgba(255,179,71,0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(255,179,71,0.12);
+}
+.actuator-card.manual-mode:active {
+  transform: scale(0.97);
+}
+.actuator-card.manual-mode.active {
+  border-color: var(--amber);
+  background: rgba(255,179,71,0.08);
+  box-shadow: 0 0 24px rgba(255,179,71,0.2);
+}
+.actuator-card.manual-mode.active .act-status { color: var(--amber); }
+.actuator-card.manual-mode.active .act-badge {
+  background: var(--amber); color: #000;
+}
+
+/* Manual indicator label */
+.manual-indicator {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  background: rgba(255,179,71,0.85);
+  color: #000;
+  font-family: var(--mono);
+  font-size: 0.42rem;
+  letter-spacing: 1.5px;
+  padding: 3px 0;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.actuator-card.manual-mode:hover .manual-indicator { opacity: 1; }
+
+.act-icon { font-size: 1.4rem; margin-bottom: 8px; margin-top: 4px; }
 .actuator-card.active .act-icon { animation: spin-slow 2s linear infinite; }
+.actuator-card.manual-mode.active .act-icon { animation: none; }
 .act-name {
   font-family: var(--mono);
   font-size: 0.5rem; letter-spacing: 2px;
@@ -312,9 +398,27 @@ body {
   background: var(--green); color: #000;
 }
 
+/* Manual override badge */
+.act-manual-tag {
+  display: none;
+  font-family: var(--mono); font-size: 0.42rem;
+  letter-spacing: 1px; color: var(--amber);
+  margin-top: 4px;
+}
+.actuator-card.manual-mode .act-manual-tag { display: block; }
+
 .auto-note {
   background: rgba(45,255,122,0.04);
   border: 1px solid var(--green-dim);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  display: flex; align-items: center; gap: 10px;
+}
+.manual-note {
+  background: rgba(255,179,71,0.06);
+  border: 1px solid var(--amber-dim);
   border-radius: var(--radius);
   padding: 10px 14px;
   font-size: 0.72rem;

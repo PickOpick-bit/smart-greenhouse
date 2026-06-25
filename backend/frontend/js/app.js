@@ -15,6 +15,10 @@ let historyData   = { labels: [], datasets: {} };
 let ws            = null;
 let wsRetryCount  = 0;
 
+// Manual/Auto mode state
+let isManualMode = false;
+let manualState  = { kipas: false, lampu: false, pompa: false };
+
 // ── Init ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initClock();
@@ -117,13 +121,15 @@ function updateSensorUI(d) {
   // Alerts
   loadConfigAndAlerts(data);
 
-  // Aktuator
-  updateActuator('actKipas', 'statusKipas', 'badgeKipas', 'reasonKipas',
-    data.status_kipas, data.status_kipas ? 'Suhu/kelembapan tinggi' : 'Kondisi normal');
-  updateActuator('actLampu', 'statusLampu', 'badgeLampu', 'reasonLampu',
-    data.status_lampu, data.status_lampu ? 'Cahaya GELAP' : 'Cahaya TERANG');
-  updateActuator('actPompa', 'statusPompa', 'badgePompa', 'reasonPompa',
-    data.status_pompa, data.status_pompa ? 'Tanah KERING' : 'Tanah BASAH');
+  // Aktuator — only update from sensor data when in AUTO mode
+  if (!isManualMode) {
+    updateActuator('actKipas', 'statusKipas', 'badgeKipas', 'reasonKipas',
+      data.status_kipas, data.status_kipas ? 'Suhu/kelembapan tinggi' : 'Kondisi normal');
+    updateActuator('actLampu', 'statusLampu', 'badgeLampu', 'reasonLampu',
+      data.status_lampu, data.status_lampu ? 'Cahaya GELAP' : 'Cahaya TERANG');
+    updateActuator('actPompa', 'statusPompa', 'badgePompa', 'reasonPompa',
+      data.status_pompa, data.status_pompa ? 'Tanah KERING' : 'Tanah BASAH');
+  }
 
   // Timestamp
   const ts = data.timestamp ? new Date(data.timestamp) : new Date();
@@ -385,6 +391,81 @@ function showToast(msg, type = 'ok') {
   t.textContent = msg;
   container.appendChild(t);
   setTimeout(() => t.remove(), 4000);
+}
+
+// ── Mode Toggle ───────────────────────────────────────────────
+function toggleMode() {
+  isManualMode = !isManualMode;
+  const btn       = document.getElementById('modeToggle');
+  const autoNote  = document.getElementById('autoNote');
+  const manNote   = document.getElementById('manualNote');
+  const cards     = ['actKipas','actLampu','actPompa'];
+
+  if (isManualMode) {
+    btn.className    = 'mode-toggle mode--manual';
+    btn.innerHTML    = '<span class="mode-icon">🖐</span><span class="mode-label">MODE: MANUAL</span><span class="mode-arrow">⇄</span>';
+    autoNote.style.display = 'none';
+    manNote.style.display  = 'flex';
+    cards.forEach(id => document.getElementById(id)?.classList.add('manual-mode'));
+    showToast('🖐 Mode MANUAL aktif — klik kartu untuk kontrol', 'warn');
+  } else {
+    btn.className    = 'mode-toggle mode--auto';
+    btn.innerHTML    = '<span class="mode-icon">🤖</span><span class="mode-label">MODE: OTOMATIS</span><span class="mode-arrow">⇄</span>';
+    autoNote.style.display = 'flex';
+    manNote.style.display  = 'none';
+    cards.forEach(id => document.getElementById(id)?.classList.remove('manual-mode'));
+    // Reset manual state, let sensor data take over on next update
+    manualState = { kipas: false, lampu: false, pompa: false };
+    showToast('🤖 Mode OTOMATIS aktif', 'ok');
+  }
+}
+
+// ── Manual Actuator Control ───────────────────────────────────
+async function handleActuatorClick(device) {
+  if (!isManualMode) return; // ignore clicks in auto mode
+
+  const newState = !manualState[device];
+  manualState[device] = newState;
+
+  // Optimistic UI update
+  const cardMap   = { kipas: 'actKipas',   lampu: 'actLampu',   pompa: 'actPompa' };
+  const statusMap = { kipas: 'statusKipas', lampu: 'statusLampu', pompa: 'statusPompa' };
+  const badgeMap  = { kipas: 'badgeKipas',  lampu: 'badgeLampu',  pompa: 'badgePompa' };
+  const reasonMap = { kipas: 'reasonKipas', lampu: 'reasonLampu', pompa: 'reasonPompa' };
+
+  const card = document.getElementById(cardMap[device]);
+  card?.classList.toggle('active', newState);
+  const statusEl = document.getElementById(statusMap[device]);
+  if (statusEl) statusEl.textContent = newState ? 'ON' : 'OFF';
+  const badgeEl = document.getElementById(badgeMap[device]);
+  if (badgeEl) badgeEl.textContent = newState ? 'MANUAL ON' : 'MANUAL OFF';
+  const reasonEl = document.getElementById(reasonMap[device]);
+  if (reasonEl) reasonEl.textContent = newState ? '🖐 Kontrol manual' : '🖐 Manual dimatikan';
+
+  // Send to server
+  try {
+    const res = await fetch(`${API_BASE}/control`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device, state: newState ? 1 : 0, mode: 'manual' })
+    });
+    const json = await res.json();
+    if (json.success) {
+      const icon = { kipas: '🌀', lampu: '💡', pompa: '🚿' }[device];
+      const label = { kipas: 'Kipas', lampu: 'Lampu', pompa: 'Pompa' }[device];
+      showToast(`${icon} ${label} ${newState ? 'dinyalakan' : 'dimatikan'} (manual)`);
+    } else {
+      showToast(`⚠ Gagal: ${json.message || 'Server error'}`, 'err');
+      // Revert
+      manualState[device] = !newState;
+    }
+  } catch (err) {
+    showToast('❌ Server tidak terjangkau', 'err');
+    // Revert
+    manualState[device] = !newState;
+    card?.classList.toggle('active', !newState);
+    if (statusEl) statusEl.textContent = !newState ? 'ON' : 'OFF';
+  }
 }
 
 // ── ESP Endpoints ─────────────────────────────────────────────
