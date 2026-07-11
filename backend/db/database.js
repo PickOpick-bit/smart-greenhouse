@@ -1,20 +1,14 @@
-// db/database.js — MongoDB + Actuator Control
+// db/database.js — MongoDB, Full Manual Control
 const { MongoClient } = require('mongodb');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const DB_NAME     = 'greenhouse';
 
-const DEFAULT_CONFIG = {
-  suhuMax: 30, soilMin: 40, cahayaMin: 300,
-  kelembapanMin: 60, kelembapanMax: 85
-};
-
 const DEFAULT_CONTROL = {
-  _type: 'control',
-  mode: 'auto',  // 'auto' atau 'manual'
-  kipas: false,
-  lampu: false,
-  pompa: false,
+  _type:     'control',
+  kipas:     false,
+  lampu:     false,
+  pompa:     false,
   updatedAt: new Date()
 };
 
@@ -35,31 +29,6 @@ async function getDB() {
   return db;
 }
 
-// ── CONFIG ───────────────────────────────────────────────────
-async function getConfig() {
-  const database = await getDB();
-  let doc = await database.collection('config').findOne({ _type: 'config' });
-  if (!doc) {
-    const newDoc = { _type: 'config', ...DEFAULT_CONFIG, updatedAt: new Date() };
-    await database.collection('config').insertOne(newDoc);
-    doc = await database.collection('config').findOne({ _type: 'config' });
-  }
-  return doc;
-}
-
-async function updateConfig(updates) {
-  const database = await getDB();
-  const allowed  = ['suhuMax', 'soilMin', 'cahayaMin', 'kelembapanMin', 'kelembapanMax'];
-  const filtered = { updatedAt: new Date() };
-  for (const k of allowed) if (updates[k] !== undefined) filtered[k] = updates[k];
-  await database.collection('config').updateOne(
-    { _type: 'config' },
-    { $set: filtered },
-    { upsert: true }
-  );
-  return getConfig();
-}
-
 // ── ACTUATOR CONTROL ─────────────────────────────────────────
 async function getControl() {
   const database = await getDB();
@@ -73,15 +42,37 @@ async function getControl() {
 
 async function updateControl(updates) {
   const database = await getDB();
-  const allowed  = ['mode', 'kipas', 'lampu', 'pompa'];
+  const allowed  = ['kipas', 'lampu', 'pompa'];
   const filtered = { updatedAt: new Date() };
-  for (const k of allowed) if (updates[k] !== undefined) filtered[k] = updates[k];
+  for (const k of allowed) if (updates[k] !== undefined) filtered[k] = Boolean(updates[k]);
   await database.collection('control').updateOne(
     { _type: 'control' },
     { $set: filtered },
     { upsert: true }
   );
   return getControl();
+}
+
+// ── ESP8266 HEARTBEAT ─────────────────────────────────────────
+async function updateEspHeartbeat() {
+  const database = await getDB();
+  await database.collection('esp_status').updateOne(
+    { _type: 'esp_status' },
+    { $set: { _type: 'esp_status', lastSeen: new Date(), online: true } },
+    { upsert: true }
+  );
+}
+
+async function getEspStatus() {
+  const database = await getDB();
+  const doc = await database.collection('esp_status').findOne({ _type: 'esp_status' });
+  if (!doc) return { online: false, lastSeen: null };
+  // ESP dianggap offline jika tidak ada heartbeat > 30 detik
+  const diffMs = Date.now() - new Date(doc.lastSeen).getTime();
+  return {
+    online:   diffMs < 30000,
+    lastSeen: doc.lastSeen
+  };
 }
 
 // ── SENSOR DATA ──────────────────────────────────────────────
@@ -97,15 +88,12 @@ async function insertSensorData(data) {
     const ids = oldest.map(d => d._id);
     await database.collection('sensor_data').deleteMany({ _id: { $in: ids } });
   }
-
   return { ...doc, _id: result.insertedId };
 }
 
 async function getLatestSensorData() {
   const database = await getDB();
-  const doc = await database.collection('sensor_data')
-    .findOne({}, { sort: { timestamp: -1 } });
-  return doc || null;
+  return await database.collection('sensor_data').findOne({}, { sort: { timestamp: -1 } }) || null;
 }
 
 async function getSensorHistory(limit = 50) {
@@ -116,7 +104,7 @@ async function getSensorHistory(limit = 50) {
 }
 
 module.exports = {
-  getConfig, updateConfig,
   getControl, updateControl,
+  updateEspHeartbeat, getEspStatus,
   insertSensorData, getLatestSensorData, getSensorHistory
 };

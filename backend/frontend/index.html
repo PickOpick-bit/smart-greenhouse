@@ -23,9 +23,15 @@
       </div>
     </div>
     <div class="header-center">
+      <!-- WS Status -->
       <div class="conn-status" id="connStatus">
         <span class="dot dot--offline"></span>
         <span class="conn-label">MENGHUBUNGKAN...</span>
+      </div>
+      <!-- ESP8266 Status -->
+      <div class="esp-status-header" style="margin-top:4px; display:flex; align-items:center; gap:6px; justify-content:center;">
+        <span class="esp-dot esp-dot--offline" id="espDot"></span>
+        <span id="espLabel" style="font-size:0.65rem; letter-spacing:1px; color:#ff6b6b;">ESP8266 · OFFLINE</span>
       </div>
     </div>
     <div class="header-right">
@@ -48,7 +54,6 @@
           <div class="card-meta">DHT22 · Sensor 1</div>
         </div>
         <div class="card-bar"><div class="bar-fill" id="barSuhu"></div></div>
-        <div class="card-alert" id="alertSuhu"></div>
       </div>
 
       <div class="sensor-card card--humid" id="cardHumid">
@@ -59,29 +64,26 @@
           <div class="card-meta">DHT22 · Sensor 1</div>
         </div>
         <div class="card-bar"><div class="bar-fill" id="barKelembapan"></div></div>
-        <div class="card-alert" id="alertKelembapan"></div>
       </div>
 
       <div class="sensor-card card--soil" id="cardSoil">
         <div class="card-icon">🪴</div>
         <div class="card-body">
           <div class="card-label">KELEMBAPAN TANAH</div>
-          <div class="card-value"><span id="valSoil">--</span><span class="unit">%</span></div>
+          <div class="card-value"><span id="valSoil">--</span><span class="unit"></span></div>
           <div class="card-meta">Capacitive · Sensor 2</div>
         </div>
         <div class="card-bar"><div class="bar-fill" id="barSoil"></div></div>
-        <div class="card-alert" id="alertSoil"></div>
       </div>
 
       <div class="sensor-card card--light" id="cardLight">
         <div class="card-icon">☀</div>
         <div class="card-body">
           <div class="card-label">INTENSITAS CAHAYA</div>
-          <div class="card-value"><span id="valCahaya">--</span><span class="unit">lux</span></div>
+          <div class="card-value"><span id="valCahaya">--</span><span class="unit"></span></div>
           <div class="card-meta">LDR · Sensor 3</div>
         </div>
         <div class="card-bar"><div class="bar-fill" id="barCahaya"></div></div>
-        <div class="card-alert" id="alertCahaya"></div>
       </div>
 
       <div class="last-update">
@@ -97,8 +99,6 @@
         <div class="chart-tabs">
           <button class="tab-btn active" data-sensor="suhu">Suhu</button>
           <button class="tab-btn" data-sensor="kelembapan_udara">Kelembapan</button>
-          <button class="tab-btn" data-sensor="kelembapan_tanah">Tanah</button>
-          <button class="tab-btn" data-sensor="intensitas_cahaya">Cahaya</button>
         </div>
         <div class="chart-wrapper">
           <canvas id="sensorChart"></canvas>
@@ -106,153 +106,89 @@
       </div>
 
       <div class="actuators-section">
-        <div class="section-label" style="margin-top:16px">◈ KONTROL AKTUATOR</div>
+        <div class="section-label" style="margin-top:16px">◈ KONTROL MANUAL AKTUATOR</div>
 
-        <!-- Toggle Auto/Manual -->
-        <div class="mode-toggle-wrap">
-          <button id="modeToggle" class="mode-toggle mode--auto" onclick="toggleMode()">
-            <span class="mode-icon">🤖</span>
-            <span class="mode-label">MODE: OTOMATIS</span>
-            <span class="mode-arrow">⇄</span>
+        <!-- Tombol ON/OFF Manual -->
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0;">
+          <button id="btnKipas" class="actuator-btn off" onclick="toggleActuator('kipas')">
+            ⚪ KIPAS: OFF
+          </button>
+          <button id="btnLampu" class="actuator-btn off" onclick="toggleActuator('lampu')">
+            ⚪ LAMPU: OFF
+          </button>
+          <button id="btnPompa" class="actuator-btn off" onclick="toggleActuator('pompa')">
+            ⚪ POMPA: OFF
           </button>
         </div>
 
-        <!-- Aktuator Cards (klikable saat manual) -->
+        <!-- Status Aktuator -->
         <div class="actuators-grid">
-          <div class="actuator-card" id="actKipas" onclick="handleActuatorClick('kipas')">
-            <div class="manual-indicator" id="miKipas">KLIK UNTUK TOGGLE</div>
+          <div class="actuator-card" id="actKipas">
             <div class="act-icon">🌀</div>
             <div class="act-name">KIPAS</div>
             <div class="act-status" id="statusKipas">OFF</div>
-            <div class="act-reason" id="reasonKipas">Standby</div>
+            <div class="act-reason" id="reasonKipas">Manual</div>
             <div class="act-badge" id="badgeKipas">STANDBY</div>
           </div>
-          <div class="actuator-card" id="actLampu" onclick="handleActuatorClick('lampu')">
-            <div class="manual-indicator" id="miLampu">KLIK UNTUK TOGGLE</div>
+          <div class="actuator-card" id="actLampu">
             <div class="act-icon">💡</div>
             <div class="act-name">LAMPU</div>
             <div class="act-status" id="statusLampu">OFF</div>
-            <div class="act-reason" id="reasonLampu">Standby</div>
+            <div class="act-reason" id="reasonLampu">Manual</div>
             <div class="act-badge" id="badgeLampu">STANDBY</div>
           </div>
-          <div class="actuator-card" id="actPompa" onclick="handleActuatorClick('pompa')">
-            <div class="manual-indicator" id="miPompa">KLIK UNTUK TOGGLE</div>
+          <div class="actuator-card" id="actPompa">
             <div class="act-icon">🚿</div>
             <div class="act-name">POMPA AIR</div>
             <div class="act-status" id="statusPompa">OFF</div>
-            <div class="act-reason" id="reasonPompa">Standby</div>
+            <div class="act-reason" id="reasonPompa">Manual</div>
             <div class="act-badge" id="badgePompa">STANDBY</div>
           </div>
         </div>
 
-        <div class="auto-note" id="autoNote">
-          <span class="auto-icon">⚙</span>
-          Sistem berjalan <strong>otomatis</strong> berdasarkan threshold. Tidak ada kontrol manual.
+        <div class="auto-note">
+          <span class="auto-icon">🎛</span>
+          Sistem berjalan <strong>FULL MANUAL</strong> — kontrol langsung dari dashboard.
         </div>
-        <div class="manual-note" id="manualNote" style="display:none">
-          <span class="auto-icon">🖐</span>
-          Mode <strong>manual aktif</strong> — klik kartu aktuator untuk nyalakan/matikan.
-        </div>
-      </div><!-- end actuators-section -->
+      </div>
     </section>
 
-    <!-- RIGHT COLUMN: Config -->
+    <!-- RIGHT COLUMN: ESP Info only -->
     <section class="config-col">
-      <div class="section-label">◈ PARAMETER KONFIGURASI</div>
+      <div class="section-label">◈ STATUS SISTEM</div>
 
       <div class="config-panel">
         <div class="config-header">
-          <div class="config-title">THRESHOLD OTOMATIS</div>
-          <div class="config-sub">Ubah nilai batas untuk logika aktuator</div>
+          <div class="config-title">ESP8266 STATUS</div>
+          <div class="config-sub">Koneksi perangkat IoT</div>
         </div>
 
-        <form class="config-form" id="configForm">
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">🌡</span>
-              Suhu Maksimum
-              <span class="label-hint">Kipas ON jika melebihi</span>
-            </label>
-            <div class="input-row">
-              <input type="number" id="suhuMax" name="suhuMax" step="0.5" min="20" max="45" placeholder="30">
-              <span class="input-unit">°C</span>
-            </div>
+        <div style="padding: 16px 0;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+            <span class="esp-dot esp-dot--offline" id="espDot2" style="width:14px;height:14px;border-radius:50%;display:inline-block;"></span>
+            <span id="espLabel2" style="font-family:'Space Mono',monospace; font-size:0.8rem; color:#ff6b6b;">ESP8266 · OFFLINE</span>
           </div>
-
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">🪴</span>
-              Kelembapan Tanah Minimum
-              <span class="label-hint">Pompa ON jika di bawah</span>
-            </label>
-            <div class="input-row">
-              <input type="number" id="soilMin" name="soilMin" step="1" min="10" max="90" placeholder="40">
-              <span class="input-unit">%</span>
-            </div>
+          <div style="font-size:0.7rem; color:#5a7a82; line-height:1.8;">
+            <div>IP Lokal: <span style="color:#c8d8dc;" id="espIpLocal">--</span></div>
+            <div>Update terakhir: <span style="color:#c8d8dc;" id="espLastSeen">--</span></div>
           </div>
+        </div>
 
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">☀</span>
-              Cahaya Minimum (LDR)
-              <span class="label-hint">Lampu ON jika di bawah</span>
-            </label>
-            <div class="input-row">
-              <input type="number" id="cahayaMin" name="cahayaMin" step="10" min="0" max="1024" placeholder="300">
-              <span class="input-unit">lux</span>
-            </div>
-          </div>
-
-          <div class="form-divider">Kelembapan Udara</div>
-
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">💧</span>
-              Kelembapan Min
-              <span class="label-hint">Alert jika terlalu kering</span>
-            </label>
-            <div class="input-row">
-              <input type="number" id="kelembapanMin" name="kelembapanMin" step="1" min="30" max="80" placeholder="60">
-              <span class="input-unit">%</span>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">💧</span>
-              Kelembapan Max
-              <span class="label-hint">Kipas ON jika melebihi</span>
-            </label>
-            <div class="input-row">
-              <input type="number" id="kelembapanMax" name="kelembapanMax" step="1" min="50" max="100" placeholder="85">
-              <span class="input-unit">%</span>
-            </div>
-          </div>
-
-          <button type="submit" class="save-btn" id="saveBtn">
-            <span class="save-icon">↑</span>
-            SIMPAN KONFIGURASI
-          </button>
-          <div class="save-feedback" id="saveFeedback"></div>
-        </form>
-
-        <div class="current-config">
-          <div class="cc-title">AKTIF SEKARANG</div>
-          <div class="cc-grid" id="currentConfigDisplay">
-            <div class="cc-item"><span class="cc-key">suhuMax</span><span class="cc-val" id="cc-suhuMax">--</span></div>
-            <div class="cc-item"><span class="cc-key">soilMin</span><span class="cc-val" id="cc-soilMin">--</span></div>
-            <div class="cc-item"><span class="cc-key">cahayaMin</span><span class="cc-val" id="cc-cahayaMin">--</span></div>
-            <div class="cc-item"><span class="cc-key">kelembapanMin</span><span class="cc-val" id="cc-kelembapanMin">--</span></div>
-            <div class="cc-item"><span class="cc-key">kelembapanMax</span><span class="cc-val" id="cc-kelembapanMax">--</span></div>
+        <div class="current-config" style="margin-top:8px;">
+          <div class="cc-title">STATUS AKTUATOR</div>
+          <div class="cc-grid">
+            <div class="cc-item"><span class="cc-key">Kipas</span><span class="cc-val" id="cc-kipas">OFF</span></div>
+            <div class="cc-item"><span class="cc-key">Lampu</span><span class="cc-val" id="cc-lampu">OFF</span></div>
+            <div class="cc-item"><span class="cc-key">Pompa</span><span class="cc-val" id="cc-pompa">OFF</span></div>
           </div>
         </div>
       </div>
 
-      <!-- ESP8266 Info -->
+      <!-- ESP8266 Endpoint -->
       <div class="esp-info">
         <div class="esp-title">📡 ESP8266 ENDPOINT</div>
-        <div class="esp-line">POST <code id="postUrl">http://[IP]:3000/data</code></div>
-        <div class="esp-line">GET &nbsp;<code id="getUrl">http://[IP]:3000/config</code></div>
+        <div class="esp-line">POST <code id="postUrl">https://[host]/data</code></div>
+        <div class="esp-line">GET &nbsp;<code id="getUrl">https://[host]/actuator</code></div>
         <button class="copy-btn" onclick="copyEndpoints()">Salin Endpoint</button>
       </div>
     </section>

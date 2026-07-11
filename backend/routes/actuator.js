@@ -1,9 +1,9 @@
-// routes/actuator.js — Kontrol manual aktuator
+// routes/actuator.js — Full Manual Control
 const express = require('express');
 const router  = express.Router();
 const { getControl, updateControl } = require('../db/database');
 
-// GET /actuator — ambil status kontrol sekarang (untuk ESP8266)
+// GET /actuator — ambil status kontrol (untuk ESP8266 & dashboard)
 router.get('/', async (req, res) => {
   try {
     const control = await getControl();
@@ -14,16 +14,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /actuator — update mode atau status aktuator dari dashboard
+// POST /actuator — update status aktuator dari dashboard
 router.post('/', async (req, res) => {
   try {
-    const { mode, kipas, lampu, pompa } = req.body;
-
-    if (mode && !['auto', 'manual'].includes(mode))
-      return res.status(400).json({ success: false, message: 'mode harus auto atau manual' });
-
+    const { kipas, lampu, pompa } = req.body;
     const updates = {};
-    if (mode  !== undefined) updates.mode  = mode;
     if (kipas !== undefined) updates.kipas = Boolean(kipas);
     if (lampu !== undefined) updates.lampu = Boolean(lampu);
     if (pompa !== undefined) updates.pompa = Boolean(pompa);
@@ -31,7 +26,7 @@ router.post('/', async (req, res) => {
     const updated = await updateControl(updates);
     const { _id, _type, updatedAt, ...data } = updated;
 
-    // WebSocket broadcast ke dashboard
+    // WebSocket broadcast
     if (req.app.locals.wss) {
       const payload = JSON.stringify({ type: 'control_update', data });
       req.app.locals.wss.clients.forEach(c => { if (c.readyState === 1) c.send(payload); });

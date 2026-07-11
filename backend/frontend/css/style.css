@@ -629,3 +629,65 @@ body {
     border-bottom: 1px solid var(--border);
   }
 }
+/* ── TAMBAHKAN KE PALING BAWAH style.css ──────────────────── */
+
+/* ESP8266 Status Dot di Header */
+.esp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.esp-dot--online {
+  background: #4fc3f7;
+  box-shadow: 0 0 6px #4fc3f7;
+  animation: pulse-online 2s infinite;
+}
+
+.esp-dot--offline {
+  background: #ff6b6b;
+  box-shadow: 0 0 6px #ff6b6b;
+}
+
+@keyframes pulse-online {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* Actuator Control Buttons */
+.actuator-btn {
+  padding: 12px 8px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.actuator-btn.off {
+  background: #1a1f24;
+  color: #5a7a82;
+  border: 1px solid #2a3a40;
+}
+
+.actuator-btn.on {
+  background: #1a3a2a;
+  color: #4fc3f7;
+  border: 1px solid #4fc3f7;
+  box-shadow: 0 0 8px rgba(79, 195, 247, 0.3);
+}
+
+.actuator-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.03);
+}
+
+.actuator-btn:active {
+  transform: scale(0.97);
+}
